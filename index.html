@@ -6792,6 +6792,7 @@
   document.getElementById('postalLabelsList').addEventListener('click', e=>{
     const btn = e.target.closest('.remove-postal-label-btn');
     if(!btn) return;
+    if(!confirm('این گیرنده از لیست برچسب پستی حذف شود؟')) return;
     DB.postalLabels = DB.postalLabels.filter(r=>r.id!==btn.dataset.id);
     saveDB();
     renderPostalLabelsList();
@@ -7612,6 +7613,8 @@
     const { type, id } = currentDetail;
     const map = { sale:'sales', customer:'customers', product:'products', expense:'expenses' };
     const key = map[type];
+    const typeLabel = { sale:'این فروش', customer:'این مشتری', product:'این محصول', expense:'این هزینه' }[type] || 'این مورد';
+    if(!confirm(`${typeLabel} برای همیشه حذف شود؟ این عمل قابل بازگشت نیست.`)) return;
     if(type==='customer'){
       const hasSales = DB.sales.some(s=>s.customerId===id);
       const hasExpenses = DB.expenses.some(e=>e.relatedCustomerId===id);
@@ -9346,6 +9349,14 @@
   */
   const APP_CHANGELOG = [
     {
+      version: '1.17.2',
+      notes: [
+        'رفع اشکال: حذف فروش، مشتری، محصول یا هزینه از صفحه جزئیات بدون هیچ تاییدی انجام می‌شد؛ الان همیشه یک پیام تایید نشان داده می‌شود',
+        'حذف تکی گیرنده از لیست برچسب پستی هم حالا تایید می‌خواهد',
+        'پنجره «تغییرات جدید» از این به بعد فقط برای ویژگی‌های واقعاً جدید نمایش داده می‌شود، نه هر رفع اشکال کوچک'
+      ]
+    },
+    {
       version: '1.17.1',
       notes: [
         'در برچسب پستی، نام مالک کسب‌وکار به‌جای کنار اسم برند، پایین‌تر و زیر «فرستنده» نمایش داده می‌شود',
@@ -9546,11 +9557,14 @@
   function showChangelogIfNeeded(){
     if(!APP_CHANGELOG.length) return;
     const latest = APP_CHANGELOG[0];
+    // فقط دو رقم اول نسخه (major.minor) رو مقایسه می‌کنیم — یعنی رفع اشکال‌های
+    // کوچیک (تغییر فقط رقم سوم/patch) دیگه دوباره این پنجره رو نشون نمی‌دن؛
+    // فقط وقتی یک ویژگی واقعاً جدید اومده باشه (رقم دوم/minor عوض شده) نشون داده می‌شه.
+    const minorOf = (v)=> v.split('.').slice(0,2).join('.');
     let seen = null;
     try{ seen = localStorage.getItem(CHANGELOG_SEEN_KEY); }catch(e){}
-    // اگه نسخه‌ی دیده‌شده با آخرین نسخه فرق داشت (یعنی از آپدیت قبلی اومده یا اولین بارشه)، نشون بده.
     // seen===null یعنی اولین اجرای برنامه‌ست؛ اون حالت رو هم نشون می‌دیم چون تغییرات همینه که کاربر می‌بینه.
-    if(seen !== latest.version){
+    if(seen === null || minorOf(seen) !== minorOf(latest.version)){
       const listEl = document.getElementById('changelogList');
       listEl.innerHTML = latest.notes.map(n=>`<li>${n}</li>`).join('');
       document.getElementById('changelogVersionLabel').textContent = 'نسخه ' + latest.version;
