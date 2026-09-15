@@ -1426,6 +1426,54 @@
     color: var(--accent-deep);
     font-weight: 700;
   }
+  .debt-card .main-info { width: 100%; }
+  .debt-progress-bar {
+    width: 100%;
+    height: 8px;
+    border-radius: 20px;
+    background: var(--line);
+    overflow: hidden;
+    margin-top: 8px;
+  }
+  .debt-progress-fill {
+    height: 100%;
+    background: var(--accent-deep);
+    border-radius: 20px;
+    transition: width .3s ease;
+  }
+  .installment-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 14px;
+    border: 1.5px solid var(--line-strong);
+    border-radius: 12px;
+    margin-bottom: 8px;
+  }
+  .installment-row.is-paid {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+  }
+  .installment-row .inst-info .inst-title { font-weight: 700; font-size: 14px; }
+  .installment-row .inst-info .inst-sub { font-size: 12px; color: var(--ink-faint); margin-top: 2px; }
+  .installment-row .inst-status-btn {
+    flex-shrink: 0;
+    padding: 8px 16px;
+    border-radius: 10px;
+    border: none;
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    background: var(--accent-deep);
+    color: #fff;
+  }
+  .installment-row.is-paid .inst-status-btn {
+    background: none;
+    color: var(--accent-deep);
+    border: 1.5px solid var(--accent);
+  }
   .btn-danger-text {
     background: none;
     color: var(--danger);
@@ -2678,6 +2726,7 @@
       <div class="search-box"><input type="text" id="searchExpenses" placeholder="جستجوی هزینه..."></div>
       <button type="button" class="filter-btn" id="expensesFilterBtn">⚙️ فیلتر<span class="filter-badge" id="expensesFilterBadge" style="display:none;">0</span></button>
     </div>
+    <button type="button" class="btn btn-secondary btn-sm" id="openDebtsListBtn" style="width:100%; margin-bottom:12px;">💳 بدهی‌های من (وام، قسط و...)</button>
     <div class="section-title">هزینه‌های ثبت‌شده<button type="button" class="section-title-add-btn" id="addExpenseFromTitle">+ جدید</button></div>
     <div class="card-list" id="expensesList"></div>
   </section>
@@ -3781,6 +3830,107 @@
   </div>
 </div>
 
+<!-- ===================== SHEET: Debts List ===================== -->
+<div class="sheet-overlay" id="sheetDebtsList">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h2>بدهی‌های من</h2>
+    <div class="help-hint-inline">وام، قسط، یا هر بدهی دیگری که خودت (نه مشتری‌هات) به کس دیگه‌ای داری. این جدا از «بستانکاری مشتریان» است. با ثبت هر پرداخت قسط، همان مبلغ به‌عنوان هزینه هم در گزارش‌ها حساب می‌شود.</div>
+    <div class="quick-total" id="debtsGrandTotalBox" style="background: var(--danger-soft);">
+      <span class="lbl" style="color:var(--danger);">مجموع باقی‌مانده کل بدهی‌ها</span>
+      <span class="val" id="debtsGrandTotal" style="color:var(--danger);">۰ تومان</span>
+    </div>
+    <div class="card-list" id="debtsList"></div>
+    <button type="button" class="btn btn-primary" id="addDebtFromListBtn" style="margin-top:14px;">+ ثبت بدهی جدید</button>
+  </div>
+</div>
+
+<!-- ===================== SHEET: New/Edit Debt ===================== -->
+<div class="sheet-overlay" id="sheetDebt">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h2 id="debtSheetTitle">ثبت بدهی جدید</h2>
+    <div class="field">
+      <label>عنوان بدهی *</label>
+      <input type="text" id="debtTitle" placeholder="مثلاً: وام بانک ملت">
+    </div>
+    <div class="field">
+      <label>مبلغ کل بدهی (تومان) *</label>
+      <input type="text" inputmode="numeric" id="debtPrincipal" placeholder="0" dir="ltr">
+    </div>
+
+    <div class="field">
+      <label>نحوه پیگیری پرداخت</label>
+      <div class="pay-status-toggle" id="debtModeToggle">
+        <button type="button" data-mode="manual" class="active">دستی (هر بار خودم مبلغ می‌زنم)</button>
+        <button type="button" data-mode="installment">قسط‌بندی‌شده (تعداد قسط مشخص)</button>
+      </div>
+    </div>
+
+    <div id="debtManualModeFields">
+      <div class="field">
+        <label>مبلغ قسط پیشنهادی (اختیاری)</label>
+        <input type="text" inputmode="numeric" id="debtInstallmentAmount" placeholder="0" dir="ltr">
+        <div class="help-hint-inline" style="margin-top:6px;">اگر پر کنی، موقع ثبت پرداخت دستی به‌صورت پیش‌فرض همین مبلغ پیشنهاد می‌شود.</div>
+      </div>
+    </div>
+
+    <div id="debtInstallmentModeFields" style="display:none;">
+      <div class="field">
+        <label>تعداد قسط *</label>
+        <input type="text" inputmode="numeric" id="debtInstallmentCount" placeholder="مثلاً: 12" dir="ltr">
+      </div>
+      <div class="field">
+        <label>تاریخ سررسید قسط اول</label>
+        <button type="button" class="jalali-date-btn" id="debtFirstDueDateBtn"></button>
+      </div>
+      <div class="help-hint-inline" id="debtInstallmentPreview" style="margin-top:-6px;"></div>
+    </div>
+
+    <div class="field">
+      <label>تاریخ ثبت</label>
+      <button type="button" class="jalali-date-btn" id="debtDateBtn"></button>
+    </div>
+    <div class="field">
+      <label>توضیحات (اختیاری)</label>
+      <textarea id="debtNote" rows="3" placeholder="مثلاً: شماره قرارداد، بانک، نرخ سود" style="width:100%; font-family:inherit; font-size:14.5px; padding:12px 14px; border-radius:11px; border:1.5px solid var(--line-strong); background:var(--paper-raised); color:var(--ink); resize:vertical;"></textarea>
+    </div>
+    <button class="btn btn-primary" id="saveDebtBtn">ثبت بدهی</button>
+  </div>
+</div>
+
+<!-- ===================== SHEET: Debt Installments Detail ===================== -->
+<div class="sheet-overlay" id="sheetDebtInstallments">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h2 id="debtInstallmentsTitle">اقساط</h2>
+    <div class="card-list" id="debtInstallmentsList"></div>
+    <button type="button" class="btn btn-secondary" id="openManualPaymentFromInstallmentsBtn" style="margin-top:14px;">ثبت پرداخت دستی (مبلغ دلخواه)</button>
+  </div>
+</div>
+
+<!-- ===================== SHEET: Register Debt Payment ===================== -->
+<div class="sheet-overlay" id="sheetDebtPayment">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h2>ثبت پرداخت قسط</h2>
+    <div class="quick-total">
+      <span class="lbl">باقی‌مانده این بدهی</span>
+      <span class="val" id="debtPaymentRemainingPreview">۰ تومان</span>
+    </div>
+    <div class="field">
+      <label>مبلغ پرداختی (تومان) *</label>
+      <input type="text" inputmode="numeric" id="debtPaymentAmount" placeholder="0" dir="ltr">
+    </div>
+    <div class="field">
+      <label>تاریخ پرداخت</label>
+      <button type="button" class="jalali-date-btn" id="debtPaymentDateBtn"></button>
+    </div>
+    <div class="help-hint-inline">این مبلغ هم از باقی‌مانده‌ی بدهی کم می‌شود و هم به‌عنوان هزینه در گزارش‌ها ثبت می‌شود.</div>
+    <button class="btn btn-primary" id="saveDebtPaymentBtn">ثبت پرداخت</button>
+  </div>
+</div>
+
 <!-- ===================== FAB Menu ===================== -->
 <!-- ===================== SHEET: First-run onboarding ===================== -->
 <div class="sheet-overlay" id="sheetOnboarding">
@@ -3893,6 +4043,7 @@
     db.payments = db.payments || [];
     db.invoices = db.invoices || [];
     db.postalLabels = db.postalLabels || [];
+    db.debts = db.debts || [];
     db.businessInfo = db.businessInfo || { name:'', ownerName:'', phone:'', address:'', logoDataUrl:'', signatureDataUrl:'', stampDataUrl:'' };
     if(db.businessInfo.logoDataUrl===undefined) db.businessInfo.logoDataUrl = '';
     if(db.businessInfo.signatureDataUrl===undefined) db.businessInfo.signatureDataUrl = '';
@@ -3933,6 +4084,12 @@
     db.customers.forEach(c=>{
       if(!c.ts) c.ts = 0;
     });
+    db.debts.forEach(d=>{
+      if(d.remaining==null) d.remaining = d.principal;
+      if(!d.payments) d.payments = [];
+      if(!d.ts) d.ts = 0;
+      if(!d.mode) d.mode = 'manual';
+    });
     if(!db.gamification || typeof db.gamification !== 'object'){
       db.gamification = {};
     }
@@ -3971,6 +4128,7 @@
       payments: [],
       invoices: [],
       postalLabels: [],
+      debts: [],
       businessInfo: { name:'', ownerName:'', phone:'', address:'', logoDataUrl:'', signatureDataUrl:'', stampDataUrl:'' },
       expenseCategories: ['سایر','اجاره','حقوق','خرید کالا','قبوض','حمل‌ونقل']
     };
@@ -6980,7 +7138,340 @@
     showToast('لیست پاک شد');
   });
 
+  /* ================= Personal Debts (بدهی‌های من) ================= */
+  let editingDebtId = null;
+  let activeDebtPaymentId = null;
+  let debtMode = 'manual'; // 'manual' | 'installment'
+  let activeInstallmentsDebtId = null;
 
+  function addJalaliMonths(ts, monthsToAdd){
+    const d = new Date(ts);
+    const [jy, jm, jd] = g2j(d.getFullYear(), d.getMonth()+1, d.getDate());
+    let newJm = jm + monthsToAdd;
+    let newJy = jy + Math.floor((newJm-1)/12);
+    newJm = ((newJm-1) % 12) + 1;
+    const jDaysInMonth = newJm<=6 ? 31 : (newJm<=11 ? 30 : 29);
+    const safeJd = Math.min(jd, jDaysInMonth);
+    const [gy,gm,gd] = j2g(newJy, newJm, safeJd);
+    return new Date(gy, gm-1, gd, 0,0,0,0).getTime();
+  }
+
+  function generateInstallments(principal, count, firstDueTs){
+    const base = Math.floor(principal / count);
+    const remainder = principal - (base * count);
+    const list = [];
+    for(let i=0;i<count;i++){
+      list.push({
+        id: uid(),
+        n: i+1,
+        amount: base + (i===count-1 ? remainder : 0), // قسط آخر باقیمانده‌ی گرد شدن رو جذب می‌کنه
+        dueTs: addJalaliMonths(firstDueTs, i),
+        paid: false,
+        paidTs: null
+      });
+    }
+    return list;
+  }
+
+  function renderDebtsList(){
+    const box = document.getElementById('debtsList');
+    const list = DB.debts || [];
+    const grandTotal = list.reduce((a,d)=>a+Math.max(0,d.remaining),0);
+    document.getElementById('debtsGrandTotal').textContent = toman(grandTotal) + ' تومان';
+    document.getElementById('debtsGrandTotalBox').style.display = list.length ? '' : 'none';
+    if(!list.length){
+      box.innerHTML = `<div class="empty-state" style="padding:24px;"><div class="icon">💳</div><div class="msg">هنوز بدهی‌ای ثبت نشده.<br>وام، قسط یا هر بدهی دیگه‌ای که خودت داری رو اینجا اضافه کن.</div></div>`;
+      return;
+    }
+    box.innerHTML = list.slice().sort((a,b)=>b.ts-a.ts).map(d=>{
+      const paidSoFar = Math.max(0, d.principal - d.remaining);
+      const pct = d.principal>0 ? Math.min(100, Math.round((paidSoFar/d.principal)*100)) : 0;
+      const isPaidOff = d.remaining<=0;
+      const isInstallment = d.mode==='installment' && Array.isArray(d.installments);
+      const paidCount = isInstallment ? d.installments.filter(x=>x.paid).length : 0;
+      return `<div class="item-card debt-card" data-id="${d.id}">
+        <div class="main-info" style="width:100%;">
+          <div class="title-row">${escapeHTML(d.title)}${isPaidOff ? ' <span class="paid-badge">تسویه شد</span>' : ''}</div>
+          <div class="sub-row">باقی‌مانده: ${toman(Math.max(0,d.remaining))} تومان از ${toman(d.principal)} تومان</div>
+          ${isInstallment ? `<div class="sub-row">${toFaDigits(paidCount)} از ${toFaDigits(d.installments.length)} قسط پرداخت‌شده</div>` : ''}
+          <div class="debt-progress-bar"><div class="debt-progress-fill" style="width:${pct}%;"></div></div>
+          <div class="btn-row" style="margin-top:10px;">
+            ${isInstallment
+              ? `<button type="button" class="btn btn-secondary btn-sm view-installments-btn" data-id="${d.id}" style="flex:1;">📋 مشاهده اقساط</button>`
+              : (!isPaidOff ? `<button type="button" class="btn btn-secondary btn-sm register-debt-payment-btn" data-id="${d.id}" style="flex:1;">💰 ثبت پرداخت</button>` : '')}
+            <button type="button" class="btn btn-secondary btn-sm edit-debt-btn" data-id="${d.id}" style="flex:1;">✏️ ویرایش</button>
+            <button type="button" class="btn-icon-only delete-debt-btn" data-id="${d.id}" title="حذف" style="border:none; background:none; font-size:18px; cursor:pointer; color:var(--danger); flex-shrink:0;">🗑</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  document.getElementById('openDebtsListBtn').addEventListener('click', ()=>{
+    renderDebtsList();
+    openSheet('sheetDebtsList');
+  });
+
+  function updateDebtModeUI(){
+    document.getElementById('debtManualModeFields').style.display = debtMode==='manual' ? '' : 'none';
+    document.getElementById('debtInstallmentModeFields').style.display = debtMode==='installment' ? '' : 'none';
+    updateDebtInstallmentPreview();
+  }
+
+  function updateDebtInstallmentPreview(){
+    const previewEl = document.getElementById('debtInstallmentPreview');
+    if(debtMode!=='installment'){ previewEl.textContent=''; return; }
+    const principal = parseNumInput(document.getElementById('debtPrincipal'));
+    const count = parseInt(toEnglishDigits(document.getElementById('debtInstallmentCount').value).replace(/[^0-9]/g,''),10) || 0;
+    if(principal>0 && count>0){
+      const base = Math.floor(principal/count);
+      previewEl.textContent = `هر قسط تقریباً ${toman(base)} تومان می‌شود (قسط آخر ممکن است کمی متفاوت باشد).`;
+    }else{
+      previewEl.textContent = '';
+    }
+  }
+
+  document.getElementById('debtModeToggle').addEventListener('click', e=>{
+    const btn = e.target.closest('button');
+    if(!btn) return;
+    document.querySelectorAll('#debtModeToggle button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    debtMode = btn.dataset.mode;
+    updateDebtModeUI();
+  });
+  document.getElementById('debtPrincipal').addEventListener('input', updateDebtInstallmentPreview);
+  document.getElementById('debtInstallmentCount').addEventListener('input', updateDebtInstallmentPreview);
+
+  function openDebtSheet(){
+    editingDebtId = null;
+    document.getElementById('debtSheetTitle').textContent = 'ثبت بدهی جدید';
+    document.getElementById('saveDebtBtn').textContent = 'ثبت بدهی';
+    document.getElementById('debtTitle').value = '';
+    document.getElementById('debtPrincipal').value = '';
+    document.getElementById('debtInstallmentAmount').value = '';
+    document.getElementById('debtInstallmentCount').value = '';
+    document.getElementById('debtNote').value = '';
+    setJalaliDateValue('debtDateBtn', Date.now());
+    setJalaliDateValue('debtFirstDueDateBtn', Date.now());
+    debtMode = 'manual';
+    document.querySelectorAll('#debtModeToggle button').forEach(b=>b.classList.toggle('active', b.dataset.mode==='manual'));
+    updateDebtModeUI();
+    openSheet('sheetDebt');
+  }
+
+  function openDebtSheetForEdit(id){
+    const d = DB.debts.find(x=>x.id===id);
+    if(!d) return;
+    editingDebtId = id;
+    document.getElementById('debtSheetTitle').textContent = 'ویرایش بدهی';
+    document.getElementById('saveDebtBtn').textContent = 'ذخیره تغییرات';
+    document.getElementById('debtTitle').value = d.title;
+    document.getElementById('debtPrincipal').value = d.principal.toLocaleString('en-US');
+    document.getElementById('debtInstallmentAmount').value = d.installmentAmount ? d.installmentAmount.toLocaleString('en-US') : '';
+    document.getElementById('debtNote').value = d.note || '';
+    setJalaliDateValue('debtDateBtn', d.ts);
+    debtMode = d.mode==='installment' ? 'installment' : 'manual';
+    document.querySelectorAll('#debtModeToggle button').forEach(b=>b.classList.toggle('active', b.dataset.mode===debtMode));
+    if(debtMode==='installment' && d.installments && d.installments.length){
+      document.getElementById('debtInstallmentCount').value = toFaDigits(d.installments.length);
+      setJalaliDateValue('debtFirstDueDateBtn', d.installments[0].dueTs);
+    }
+    updateDebtModeUI();
+    openSheet('sheetDebt');
+  }
+
+  document.getElementById('addDebtFromListBtn').addEventListener('click', openDebtSheet);
+  document.getElementById('debtDateBtn').addEventListener('click', ()=> openJalaliPicker('debtDateBtn'));
+  document.getElementById('debtFirstDueDateBtn').addEventListener('click', ()=> openJalaliPicker('debtFirstDueDateBtn'));
+  liveFormatNumberInput(document.getElementById('debtPrincipal'));
+  liveFormatNumberInput(document.getElementById('debtInstallmentAmount'));
+
+  document.getElementById('saveDebtBtn').addEventListener('click', ()=>{
+    const title = document.getElementById('debtTitle').value.trim();
+    const principal = parseNumInput(document.getElementById('debtPrincipal'));
+    const note = document.getElementById('debtNote').value.trim();
+    const ts = getJalaliDateValue('debtDateBtn');
+    if(!title){ showToast('عنوان بدهی را وارد کن'); return; }
+    if(!principal || principal<=0){ showToast('مبلغ کل بدهی را وارد کن'); return; }
+
+    let installments = undefined;
+    let installmentAmount = parseNumInput(document.getElementById('debtInstallmentAmount')) || undefined;
+
+    if(debtMode==='installment'){
+      const count = parseInt(toEnglishDigits(document.getElementById('debtInstallmentCount').value).replace(/[^0-9]/g,''),10) || 0;
+      if(!count || count<1){ showToast('تعداد قسط را وارد کن'); return; }
+      const firstDueTs = getJalaliDateValue('debtFirstDueDateBtn');
+      // اگه داره ویرایش می‌شه و از قبل اقساط داشته، پرداخت‌های قبلی رو تا حد امکان حفظ می‌کنیم
+      const prevPaidCount = (editingDebtId && DB.debts.find(x=>x.id===editingDebtId)?.installments || [])
+        .filter(x=>x.paid).length;
+      installments = generateInstallments(principal, count, firstDueTs);
+      for(let i=0;i<prevPaidCount && i<installments.length;i++){
+        installments[i].paid = true;
+        installments[i].paidTs = installments[i].dueTs;
+      }
+      installmentAmount = installments[0] ? installments[0].amount : undefined;
+    }
+
+    if(editingDebtId){
+      const d = DB.debts.find(x=>x.id===editingDebtId);
+      if(d){
+        const paidSoFar = debtMode==='installment' && installments
+          ? installments.filter(x=>x.paid).reduce((a,x)=>a+x.amount,0)
+          : Math.max(0, d.principal - d.remaining);
+        d.title = title;
+        d.principal = principal;
+        d.remaining = Math.max(0, principal - paidSoFar);
+        d.installmentAmount = installmentAmount;
+        d.mode = debtMode;
+        d.installments = installments;
+        d.note = note;
+        d.ts = ts;
+      }
+      showToast('بدهی ویرایش شد');
+    }else{
+      DB.debts.push({
+        id: uid(),
+        title, principal, remaining: principal,
+        installmentAmount,
+        mode: debtMode,
+        installments,
+        note, ts,
+        payments: []
+      });
+      showToast('بدهی ثبت شد');
+    }
+    saveDB();
+    closeSheet('sheetDebt');
+    renderDebtsList();
+  });
+
+  document.getElementById('debtsList').addEventListener('click', e=>{
+    const payBtn = e.target.closest('.register-debt-payment-btn');
+    const editBtn = e.target.closest('.edit-debt-btn');
+    const delBtn = e.target.closest('.delete-debt-btn');
+    const viewInstBtn = e.target.closest('.view-installments-btn');
+    if(payBtn){
+      openManualDebtPayment(payBtn.dataset.id);
+      return;
+    }
+    if(viewInstBtn){
+      activeInstallmentsDebtId = viewInstBtn.dataset.id;
+      renderDebtInstallmentsList();
+      openSheet('sheetDebtInstallments');
+      return;
+    }
+    if(editBtn){ openDebtSheetForEdit(editBtn.dataset.id); return; }
+    if(delBtn){
+      const d = DB.debts.find(x=>x.id===delBtn.dataset.id);
+      if(!d) return;
+      if(!confirm(`بدهی «${d.title}» برای همیشه حذف شود؟ این عمل قابل بازگشت نیست.`)) return;
+      DB.debts = DB.debts.filter(x=>x.id!==delBtn.dataset.id);
+      saveDB();
+      renderDebtsList();
+      showToast('بدهی حذف شد');
+    }
+  });
+
+  function openManualDebtPayment(debtId){
+    const d = DB.debts.find(x=>x.id===debtId);
+    if(!d) return;
+    activeDebtPaymentId = d.id;
+    document.getElementById('debtPaymentRemainingPreview').textContent = toman(Math.max(0,d.remaining)) + ' تومان';
+    document.getElementById('debtPaymentAmount').value = d.installmentAmount ? d.installmentAmount.toLocaleString('en-US') : '';
+    setJalaliDateValue('debtPaymentDateBtn', Date.now());
+    openSheet('sheetDebtPayment');
+  }
+
+  function renderDebtInstallmentsList(){
+    const d = DB.debts.find(x=>x.id===activeInstallmentsDebtId);
+    if(!d) return;
+    document.getElementById('debtInstallmentsTitle').textContent = 'اقساط: ' + d.title;
+    const box = document.getElementById('debtInstallmentsList');
+    box.innerHTML = (d.installments||[]).map(inst=>`
+      <div class="installment-row ${inst.paid ? 'is-paid' : ''}">
+        <div class="inst-info">
+          <div class="inst-title">قسط ${toFaDigits(inst.n)}</div>
+          <div class="inst-sub">${toman(inst.amount)} تومان · سررسید ${fmtDate(inst.dueTs)}${inst.paid ? ' · پرداخت‌شده' : ''}</div>
+        </div>
+        <button type="button" class="inst-status-btn" data-id="${d.id}" data-n="${inst.n}">
+          ${inst.paid ? '✓ پرداخت‌شده' : 'ثبت پرداخت'}
+        </button>
+      </div>
+    `).join('');
+  }
+
+  document.getElementById('debtInstallmentsList').addEventListener('click', e=>{
+    const btn = e.target.closest('.inst-status-btn');
+    if(!btn) return;
+    const d = DB.debts.find(x=>x.id===btn.dataset.id);
+    if(!d) return;
+    const inst = (d.installments||[]).find(x=>x.n===Number(btn.dataset.n));
+    if(!inst) return;
+    if(inst.paid){
+      // برگردوندن به حالت پرداخت‌نشده (مثلاً اگه اشتباهی زده بودن)
+      if(!confirm(`قسط ${toFaDigits(inst.n)} به حالت «پرداخت‌نشده» برگردد؟`)) return;
+      inst.paid = false;
+      inst.paidTs = null;
+      d.remaining = Math.min(d.principal, d.remaining + inst.amount);
+      // هزینه‌ی ثبت‌شده‌ی مرتبط با همین قسط رو هم حذف می‌کنیم تا گزارش درست بمونه
+      DB.expenses = DB.expenses.filter(e=> !(e.debtId===d.id && e.installmentN===inst.n));
+      saveDB();
+      renderDebtInstallmentsList();
+      renderDebtsList();
+      renderExpenses(document.getElementById('searchExpenses').value);
+      showToast('قسط به حالت پرداخت‌نشده برگشت');
+    }else{
+      inst.paid = true;
+      inst.paidTs = Date.now();
+      d.remaining = Math.max(0, d.remaining - inst.amount);
+      DB.expenses.push({
+        id: uid(),
+        amount: inst.amount,
+        desc: `قسط ${toFaDigits(inst.n)} بدهی: ${d.title}`,
+        category: 'اقساط و بدهی',
+        ts: Date.now(),
+        debtId: d.id,
+        installmentN: inst.n
+      });
+      saveDB();
+      renderDebtInstallmentsList();
+      renderDebtsList();
+      renderExpenses(document.getElementById('searchExpenses').value);
+      showToast(`قسط ${toFaDigits(inst.n)} پرداخت‌شده ثبت شد`);
+    }
+  });
+
+  document.getElementById('openManualPaymentFromInstallmentsBtn').addEventListener('click', ()=>{
+    if(!activeInstallmentsDebtId) return;
+    openManualDebtPayment(activeInstallmentsDebtId);
+  });
+
+  liveFormatNumberInput(document.getElementById('debtPaymentAmount'));
+  document.getElementById('debtPaymentDateBtn').addEventListener('click', ()=> openJalaliPicker('debtPaymentDateBtn'));
+
+  document.getElementById('saveDebtPaymentBtn').addEventListener('click', ()=>{
+    const d = DB.debts.find(x=>x.id===activeDebtPaymentId);
+    if(!d) return;
+    const amount = parseNumInput(document.getElementById('debtPaymentAmount'));
+    const ts = getJalaliDateValue('debtPaymentDateBtn');
+    if(!amount || amount<=0){ showToast('مبلغ پرداختی را وارد کن'); return; }
+    d.payments.push({ id: uid(), amount, ts });
+    d.remaining = Math.max(0, d.remaining - amount);
+    // این پرداخت مثل یک هزینه‌ی واقعی است، پس در گزارش سود/زیان هم حساب می‌شود
+    DB.expenses.push({
+      id: uid(),
+      amount,
+      desc: `قسط بدهی: ${d.title}`,
+      category: 'اقساط و بدهی',
+      ts,
+      debtId: d.id
+    });
+    saveDB();
+    closeSheet('sheetDebtPayment');
+    renderDebtsList();
+    renderExpenses(document.getElementById('searchExpenses').value);
+    showToast('پرداخت ثبت شد');
+  });
 
   function openInvoiceInNewTab(html, invoiceData){
     const w = window.open('', '_blank');
@@ -9540,6 +10031,22 @@
     تا فقط یک‌بار به کاربر نمایش داده بشه بعد از آپدیت.
   */
   const APP_CHANGELOG = [
+    {
+      version: '1.20.0',
+      notes: [
+        'بخش «بدهی‌های من» کامل‌تر شد: حالا می‌توان بدهی را به‌صورت «قسط‌بندی‌شده» ثبت کرد (تعداد قسط + تاریخ سررسید اول)، و برنامه خودش مبلغ و تاریخ هر قسط را حساب می‌کند',
+        'برای بدهی قسط‌بندی‌شده، هر قسط را می‌توان تک‌تک و فقط با یک لمس «پرداخت‌شده» علامت زد، بدون نیاز به وارد کردن دوباره مبلغ',
+        'حالت «دستی» هم همچنان برای پرداخت‌های نامنظم یا مبلغ دلخواه در دسترس است'
+      ]
+    },
+    {
+      version: '1.19.0',
+      notes: [
+        'بخش جدید «بدهی‌های من» در تب هزینه‌ها: برای ثبت وام، قسط یا هر بدهی دیگری که خودت (نه مشتری‌هات) به کسی داری — جدا از «بستانکاری مشتریان»',
+        'هر بدهی نوار پیشرفت پرداخت دارد و می‌توان برایش چند پرداخت/قسط جداگانه ثبت کرد',
+        'هر پرداخت قسط هم‌زمان از باقی‌مانده‌ی بدهی کم می‌شود و هم به‌عنوان هزینه در گزارش سود و زیان حساب می‌شود'
+      ]
+    },
     {
       version: '1.18.0',
       notes: [
